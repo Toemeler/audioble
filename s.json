@@ -19,21 +19,21 @@
       "screenshots": [],
       "versions": [
         {
-          "version": "1.0.4",
-          "buildVersion": "4",
-          "date": "2026-09-22T16:42:33Z",
-          "localizedDescription": "Automatischer Build build-4.",
-          "downloadURL": "https://github.com/Toemeler/audioble/releases/download/build-4/Audioble.ipa",
-          "size": 578787,
-          "sha256": "1f234f74462990636953d04719641beae857cb013f27f1a1bb6f4a8ee2dc773d",
+          "version": "1.0.6",
+          "buildVersion": "6",
+          "date": "2026-09-22T16:45:37Z",
+          "localizedDescription": "Automatischer Build build-6.",
+          "downloadURL": "https://github.com/Toemeler/audioble/releases/download/build-6/Audioble.ipa",
+          "size": 578783,
+          "sha256": "38123d0e37abc1e55c0f01f9a6ca751327936685051fdb6a01b02e6744c8fd9c",
           "minOSVersion": "26.0"
         }
       ],
-      "version": "1.0.4",
-      "versionDate": "2026-09-22T16:42:33Z",
-      "versionDescription": "Automatischer Build build-4.",
-      "downloadURL": "https://github.com/Toemeler/audioble/releases/download/build-4/Audioble.ipa",
-      "size": 578787
+      "version": "1.0.6",
+      "versionDate": "2026-09-22T16:45:37Z",
+      "versionDescription": "Automatischer Build build-6.",
+      "downloadURL": "https://github.com/Toemeler/audioble/releases/download/build-6/Audioble.ipa",
+      "size": 578783
     }
   ],
   "news": []
