@@ -1,0 +1,40 @@
+{
+  "name": "Audioble",
+  "identifier": "io.github.toemeler.audioble",
+  "subtitle": "Lokaler Hörbuch-Player",
+  "description": "Ein lokaler Hörbuch-Player. Importiere ein ZIP-Archiv mit den Kapiteln als MP3 und höre los: Kapitelübersicht, automatischer Übergang ins nächste Kapitel, gespeicherte Hörposition, 30-Sekunden-Sprünge, Geschwindigkeit, Schlummer-Timer, Clips, Auto-Modus und Sperrbildschirm-Steuerung.\n\nAlles bleibt auf dem Gerät: keine Konten, keine Netzwerkzugriffe, keine Analyse.",
+  "iconURL": "https://raw.githubusercontent.com/Toemeler/audioble/main/icon.png",
+  "website": "https://github.com/Toemeler/audioble",
+  "tintColor": "FFA000",
+  "apps": [
+    {
+      "name": "Audioble",
+      "bundleIdentifier": "de.toemeler.Audioble",
+      "developerName": "Toemeler",
+      "subtitle": "Lokaler Hörbuch-Player",
+      "localizedDescription": "Ein lokaler Hörbuch-Player. Importiere ein ZIP-Archiv mit den Kapiteln als MP3 und höre los: Kapitelübersicht, automatischer Übergang ins nächste Kapitel, gespeicherte Hörposition, 30-Sekunden-Sprünge, Geschwindigkeit, Schlummer-Timer, Clips, Auto-Modus und Sperrbildschirm-Steuerung.\n\nAlles bleibt auf dem Gerät: keine Konten, keine Netzwerkzugriffe, keine Analyse.",
+      "iconURL": "https://raw.githubusercontent.com/Toemeler/audioble/main/icon.png",
+      "tintColor": "FFA000",
+      "category": "entertainment",
+      "screenshots": [],
+      "versions": [
+        {
+          "version": "1.0.1",
+          "buildVersion": "1",
+          "date": "2026-09-22T16:33:03Z",
+          "localizedDescription": "Automatischer Build build-1.",
+          "downloadURL": "https://github.com/Toemeler/audioble/releases/download/build-1/Audioble.ipa",
+          "size": 576870,
+          "sha256": "c69139eeb8af6a2e708b746788e6a5f17f74916d6ca5f0509c9766ffe9988079",
+          "minOSVersion": "26.0"
+        }
+      ],
+      "version": "1.0.1",
+      "versionDate": "2026-09-22T16:33:03Z",
+      "versionDescription": "Automatischer Build build-1.",
+      "downloadURL": "https://github.com/Toemeler/audioble/releases/download/build-1/Audioble.ipa",
+      "size": 576870
+    }
+  ],
+  "news": []
+}
