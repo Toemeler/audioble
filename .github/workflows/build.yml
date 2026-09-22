@@ -293,29 +293,51 @@ jobs:
 
     steps:
       - name: Enable Pages if it is not on yet
-        # enablement: true switches the repository's Pages source to "GitHub
-        # Actions" and creates the site when it does not exist. It needs the
-        # pages: write permission above; an organisation policy can still
-        # refuse, in which case Pages can be switched on by hand under
-        # Settings -> Pages and this step succeeds from then on.
+        id: configure
+        # GitHub's own Actions token may not CREATE a Pages site - that needs
+        # repository-admin rights, so it answers "Resource not accessible by
+        # integration" until Pages has been switched on once by hand. Once the
+        # site exists this step simply finds it. A repository without Pages is
+        # not a broken build, so the job reports what to switch on and stays
+        # green: the feed is committed to the branch either way and stays
+        # reachable over raw.githubusercontent.com.
+        continue-on-error: true
         uses: actions/configure-pages@v5
         with:
           enablement: true
 
       - uses: actions/download-artifact@v4
+        if: steps.configure.outcome == 'success'
         with:
           name: audioble-pages
           path: _site
 
       - uses: actions/upload-pages-artifact@v3
+        if: steps.configure.outcome == 'success'
         with:
           path: _site
 
       - name: Deploy
         id: deploy
+        if: steps.configure.outcome == 'success'
+        # Pages set to "Deploy from a branch" rejects a workflow deployment.
+        # That is a working setup too - it serves the committed feed directly -
+        # so it must not fail the build either.
+        continue-on-error: true
         uses: actions/deploy-pages@v4
 
       - name: Where the source lives
+        env:
+          RAW_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.event.repository.default_branch }}/s.json
         run: |
-          echo "Pages:  ${{ steps.deploy.outputs.page_url }}"
-          echo "Source: ${{ steps.deploy.outputs.page_url }}s.json"
+          set -euo pipefail
+          if [ "${{ steps.deploy.outcome }}" = "success" ]; then
+            PAGE="${{ steps.deploy.outputs.page_url }}"
+            echo "Pages:  $PAGE"
+            echo "Quelle: ${PAGE}s.json"
+            echo "::notice::SideStore-Quelle: ${PAGE}s.json"
+          else
+            SITE="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+            echo "::warning::GitHub Pages ist noch nicht eingerichtet. Einmalig unter Settings -> Pages die Source auf 'GitHub Actions' stellen; danach liegt die SideStore-Quelle unter ${SITE}/s.json. Bis dahin funktioniert sie unverändert über ${RAW_URL}"
+            echo "Quelle (ohne Pages): $RAW_URL"
+          fi

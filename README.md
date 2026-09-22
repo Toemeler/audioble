@@ -53,9 +53,16 @@ Jeder Build landet als unsigniertes IPA in einem
   ```
 
   Auf [toemeler.github.io/audioble](https://toemeler.github.io/audioble/) gibt
-  es dafür einen Ein-Tipp-Button. Die Seite wird vom Workflow mitgebaut und
-  über GitHub Pages veröffentlicht; ohne Pages funktioniert stattdessen
-  `https://raw.githubusercontent.com/Toemeler/audioble/main/s.json`.
+  es dafür einen Ein-Tipp-Button. Ohne Pages funktioniert stattdessen
+  `https://raw.githubusercontent.com/Toemeler/audioble/main/s.json` – der Feed
+  liegt auch im Repository selbst.
+
+  **Pages einmalig einschalten:** unter *Settings → Pages* die Source auf
+  **GitHub Actions** stellen. Der Workflow kann das nicht selbst tun – der
+  Actions-Token darf eine Pages-Site nicht anlegen („Resource not accessible
+  by integration“). Danach veröffentlicht der Job `pages` die Quelle bei jedem
+  Build; solange Pages aus ist, meldet er das als Warnung und lässt den Build
+  grün.
 - **Direkt:** `Audioble.ipa` laden und mit SideStore, AltStore oder
   Sideloadly installieren.
 
