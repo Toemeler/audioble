@@ -1,0 +1,19 @@
+# Xcode build artifacts
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# Dependency managers (none used)
+Pods/
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# Audiobook zips dropped into Sample/ are far too big for git.
+Sample/*.zip
+Sample/*.ZIP

@@ -1,0 +1,236 @@
+import AVFoundation
+import Foundation
+
+/// What the import sheet shows while a zip is being unpacked.
+struct ImportProgress: Equatable {
+    var fileName: String
+    var fraction: Double
+    var detail: String
+}
+
+/// The library: the books on disk, their listening positions, and the importer
+/// that puts them there. Everything is local - there is no account, no network
+/// call and no server anywhere in this app.
+@MainActor
+final class LibraryStore: ObservableObject {
+    static let shared = LibraryStore()
+
+    @Published private(set) var books: [Book] = []
+    @Published var importProgress: ImportProgress?
+    @Published var errorMessage: String?
+
+    private var importTask: Task<Void, Never>?
+    private var saveWorkItem: Task<Void, Never>?
+
+    /// Documents, so imported books show up in the Files app and a zip can be
+    /// dropped straight into the app's folder from a Mac or from iCloud Drive.
+    private let root: URL = {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return documents.appendingPathComponent("Books", isDirectory: true)
+    }()
+
+    private var indexURL: URL { root.appendingPathComponent("library.json") }
+
+    private init() {
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        load()
+    }
+
+    // MARK: - Paths
+
+    func directory(for book: Book) -> URL {
+        root.appendingPathComponent(book.id.uuidString, isDirectory: true)
+    }
+
+    func url(for chapter: Chapter, in book: Book) -> URL {
+        directory(for: book).appendingPathComponent(chapter.fileName)
+    }
+
+    func coverURL(for book: Book) -> URL? {
+        guard let name = book.coverFileName else { return nil }
+        let url = directory(for: book).appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    // MARK: - Persistence
+
+    private func load() {
+        guard let data = try? Data(contentsOf: indexURL) else { return }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let stored = try? decoder.decode([Book].self, from: data) else { return }
+        // Drop entries whose folder was removed behind the app's back, so a
+        // stale row can never open into a player with nothing to play.
+        books = stored.filter { FileManager.default.fileExists(atPath: directory(for: $0).path) }
+        if books.count != stored.count { save() }
+    }
+
+    func save() {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(books) else { return }
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        // Atomic: a crash mid-write must not cost the listener every position.
+        try? data.write(to: indexURL, options: .atomic)
+    }
+
+    /// Position updates arrive about once a second while playing; batching them
+    /// keeps the write off the playback path.
+    private func saveSoon() {
+        saveWorkItem?.cancel()
+        saveWorkItem = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
+            self?.save()
+        }
+    }
+
+    // MARK: - Mutations
+
+    func book(id: UUID) -> Book? { books.first { $0.id == id } }
+
+    func updateProgress(bookID: UUID, chapterIndex: Int, position: Double, immediate: Bool = false) {
+        guard let index = books.firstIndex(where: { $0.id == bookID }) else { return }
+        books[index].chapterIndex = chapterIndex
+        books[index].position = position
+        books[index].lastPlayedAt = Date()
+        if books[index].isFinished, !books[index].isNowComplete { books[index].isFinished = false }
+        immediate ? save() : saveSoon()
+    }
+
+    func markFinished(bookID: UUID) {
+        guard let index = books.firstIndex(where: { $0.id == bookID }) else { return }
+        books[index].isFinished = true
+        books[index].lastPlayedAt = Date()
+        save()
+    }
+
+    func resetProgress(bookID: UUID) {
+        guard let index = books.firstIndex(where: { $0.id == bookID }) else { return }
+        books[index].chapterIndex = 0
+        books[index].position = 0
+        books[index].isFinished = false
+        save()
+    }
+
+    func rename(bookID: UUID, title: String, author: String) {
+        guard let index = books.firstIndex(where: { $0.id == bookID }) else { return }
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let author = author.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty { books[index].title = title }
+        books[index].author = author
+        save()
+    }
+
+    @discardableResult
+    func addBookmark(bookID: UUID, chapterIndex: Int, position: Double) -> Bool {
+        guard let index = books.firstIndex(where: { $0.id == bookID }) else { return false }
+        // Two clips a few seconds apart in the same chapter are almost always a
+        // double tap, not two places worth keeping.
+        let isDuplicate = books[index].bookmarks.contains {
+            $0.chapterIndex == chapterIndex && abs($0.position - position) < 5
+        }
+        guard !isDuplicate else { return false }
+        books[index].bookmarks.append(
+            Bookmark(chapterIndex: chapterIndex, position: position)
+        )
+        books[index].bookmarks.sort {
+            ($0.chapterIndex, $0.position) < ($1.chapterIndex, $1.position)
+        }
+        save()
+        return true
+    }
+
+    func removeBookmark(bookID: UUID, bookmarkID: UUID) {
+        guard let index = books.firstIndex(where: { $0.id == bookID }) else { return }
+        books[index].bookmarks.removeAll { $0.id == bookmarkID }
+        save()
+    }
+
+    /// Bytes the library occupies, for the settings screen.
+    func storageUsed() -> Int64 {
+        let keys: [URLResourceKey] = [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey]
+        guard let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys) else {
+            return 0
+        }
+        var total: Int64 = 0
+        for case let url as URL in walker {
+            let values = try? url.resourceValues(forKeys: Set(keys))
+            total += Int64(values?.totalFileAllocatedSize ?? values?.fileAllocatedSize ?? 0)
+        }
+        return total
+    }
+
+    func deleteAll() {
+        let directories = books.map { directory(for: $0) }
+        books.removeAll()
+        save()
+        Task.detached(priority: .utility) {
+            for directory in directories { try? FileManager.default.removeItem(at: directory) }
+        }
+    }
+
+    func delete(bookID: UUID) {
+        guard let index = books.firstIndex(where: { $0.id == bookID }) else { return }
+        let book = books[index]
+        books.remove(at: index)
+        save()
+        let directory = directory(for: book)
+        Task.detached(priority: .utility) {
+            try? FileManager.default.removeItem(at: directory)
+        }
+    }
+
+    // MARK: - Import
+
+    func cancelImport() {
+        importTask?.cancel()
+    }
+
+    /// Unpack a zip into the library. Accepts a security-scoped URL from the
+    /// file picker, from "Copy to Audioble", or from the app's own Documents
+    /// folder; the archive itself is read in place and never copied.
+    func importArchive(at url: URL) {
+        guard importProgress == nil else { return }
+        importProgress = ImportProgress(
+            fileName: url.deletingPathExtension().lastPathComponent,
+            fraction: 0,
+            detail: "Archiv wird gelesen …"
+        )
+
+        importTask = Task { [weak self] in
+            guard let self else { return }
+            let root = self.root
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+
+            do {
+                let imported = try await Importer.run(archive: url, into: root) { progress in
+                    Task { @MainActor [weak self] in self?.importProgress = progress }
+                }
+                guard !Task.isCancelled else { return }
+                self.books.append(contentsOf: imported)
+                self.save()
+                self.importProgress = nil
+                if imported.isEmpty {
+                    self.errorMessage = "In diesem Archiv wurden keine Audiodateien gefunden."
+                }
+            } catch is CancellationError {
+                self.importProgress = nil
+            } catch {
+                self.importProgress = nil
+                self.errorMessage = (error as? LocalizedError)?.errorDescription
+                    ?? error.localizedDescription
+            }
+        }
+    }
+}
+
+private extension Book {
+    /// True once the playhead sits at the very end of the last chapter.
+    var isNowComplete: Bool {
+        chapterIndex >= chapters.count - 1
+            && position >= (chapters.last?.duration ?? 0) - 1
+    }
+}
