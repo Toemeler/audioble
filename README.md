@@ -1,7 +1,8 @@
 # Audioble
 
 Ein lokaler Hörbuch-Player für iOS. ZIP-Archiv importieren, hören, fertig –
-ohne Konto, ohne Netzwerkzugriff, ohne Abhängigkeiten.
+ohne Konto und ohne Cloud. Wiedergabe auf dem Gerät, per AirPlay oder auf
+einem Chromecast.
 
 <img src="Audioble/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png" width="120" alt="Audioble">
 
@@ -20,9 +21,13 @@ ohne Konto, ohne Netzwerkzugriff, ohne Abhängigkeiten.
 - Hörposition wird gesichert – bei Pause, Kapitelwechsel, im Hintergrund und
   laufend während der Wiedergabe
 - Geschwindigkeit 0,5×–3×, Schlummer-Timer (auch „Ende des Kapitels“)
-- Clips als Lesezeichen, Auto-Modus mit großen Tasten
-- Sperrbildschirm, Control Center, AirPlay, Kopfhörer-Tasten
+- Sperrbildschirm, Control Center, Kopfhörer-Tasten
 - Pausiert bei Anruf und beim Abziehen der Kopfhörer, setzt danach fort
+
+**Ausgabe**
+- **AirPlay** über den Router im Player – HomePod, Apple TV, Auto
+- **Google Cast** auf jeden Chromecast im WLAN, mit Cover und Kapiteltitel auf
+  dem Empfänger; Verbinden und Trennen übernehmen die Hörposition
 
 ## Format der Archive
 
@@ -73,7 +78,9 @@ Jeder Build landet als unsigniertes IPA in einem
 .github/scripts/package_ipa.sh build/Release-iphoneos/Audioble.app Audioble.ipa
 ```
 
-Oder in Xcode: `Audioble.xcodeproj` öffnen, Target `Audioble`.
+`build_app.sh` lädt das Cast SDK bei Bedarf selbst. Für Xcode einmal
+`.github/scripts/fetch_cast_sdk.sh` ausführen, dann `Audioble.xcodeproj`
+öffnen, Target `Audioble`.
 
 Der Workflow [`Build`](.github/workflows/build.yml) baut bei jedem Push auf
 `main` und veröffentlicht `build-N`; ein `v*`-Tag veröffentlicht unter diesem
@@ -96,8 +103,31 @@ einer klaren Meldung ab, statt tief im Build zu scheitern.
 | `ID3.swift` | ID3v2.2/2.3/2.4: Titel, Track, Autor, Cover |
 | `Importer.swift` | Archiv → Bücher: entpacken, Tags lesen, Längen messen |
 | `LibraryStore.swift` | Bibliothek und Hörpositionen, atomar auf Platte |
-| `PlayerEngine.swift` | AVPlayer, Autoplay, Timer, Fernbedienung |
+| `PlayerEngine.swift` | AVPlayer, Autoplay, Timer, Fernbedienung, Umschalten auf Cast |
+| `MediaServer.swift` | HTTP-Server im WLAN, Range-Requests, nur fürs Casten |
+| `CastManager.swift` | Cast-Sitzung, Laden, Spiegeln des Empfängers |
 | `LibraryView.swift` / `PlayerView.swift` | Die beiden Bildschirme |
 
-Keine Pakete, keine Pods – nur SwiftUI, AVFoundation, MediaPlayer und
-Compression.
+## Warum Casten einen Server braucht
+
+Ein Chromecast holt sich Medien **selbst** über eine URL – er kommt an die
+Sandbox der App nicht heran. Ein lokal importiertes Kapitel lässt sich also
+nicht „hinschicken"; es muss erreichbar sein. `MediaServer` liefert deshalb
+während einer Cast-Sitzung genau die Kapitel des laufenden Buchs im WLAN aus,
+hinter einem zufälligen Token, mit Range-Requests fürs Spulen und blockweise
+gesendet. Ohne Sitzung läuft er nicht.
+
+Zwei Folgen davon:
+
+- Die App fragt beim ersten Cast nach **Zugriff auf das lokale Netzwerk**.
+- Während des Castens spielt das Telefon **Stille**. Das ist kein Fehler: iOS
+  hält eine Audio-App nur am Leben, solange sie Ton erzeugt – und mit der App
+  stürbe der Server mitten im Kapitel.
+
+## Abhängigkeiten
+
+Eine: das **Google Cast SDK**, ein geschlossenes Binary von Google. Es ist
+nicht eingecheckt, sondern wird vor dem Build geladen
+(`.github/scripts/fetch_cast_sdk.sh`, landet in `Vendor/`). Alles andere ist
+SwiftUI, AVFoundation, MediaPlayer, Network und Compression – ZIP-Lesen und
+ID3-Auswertung sind selbst geschrieben.
