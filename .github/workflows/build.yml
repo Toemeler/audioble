@@ -46,6 +46,8 @@ jobs:
     name: Build and release
     runs-on: macos-26
     timeout-minutes: 25
+    outputs:
+      published: ${{ steps.appcheck.outputs.skip != 'true' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -245,6 +247,23 @@ jobs:
             "Update source feed for ${{ steps.tag.outputs.tag }}" \
             s.json apps.json icon.png index.html .build-stamp
 
+      - name: Stage the Pages site
+        if: steps.appcheck.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp index.html s.json apps.json icon.png _site/
+          ls -l _site
+
+      - name: Hand the site to the Pages job
+        if: steps.appcheck.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: audioble-pages
+          path: _site
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Upload the build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -252,3 +271,51 @@ jobs:
           name: build-log
           path: build.log
           if-no-files-found: ignore
+
+  pages:
+    name: Publish the SideStore source to Pages
+    needs: build
+    if: needs.build.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # A job-level block replaces the workflow-level one outright, so the
+      # scopes the actions in this job need are all listed here: actions:read
+      # for pulling the artifact the build job left behind, pages+id-token for
+      # the deployment itself.
+      actions: read
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Enable Pages if it is not on yet
+        # enablement: true switches the repository's Pages source to "GitHub
+        # Actions" and creates the site when it does not exist. It needs the
+        # pages: write permission above; an organisation policy can still
+        # refuse, in which case Pages can be switched on by hand under
+        # Settings -> Pages and this step succeeds from then on.
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: audioble-pages
+          path: _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Where the source lives
+        run: |
+          echo "Pages:  ${{ steps.deploy.outputs.page_url }}"
+          echo "Source: ${{ steps.deploy.outputs.page_url }}s.json"

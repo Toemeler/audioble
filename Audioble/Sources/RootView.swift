@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 enum RootTab: Hashable { case library, importing, settings }
@@ -159,22 +160,36 @@ private struct MiniPlayer: View {
     }
 }
 
-/// The circular-arrow-with-a-number glyph used for the 30-second buttons.
-/// SF Symbols only ships fixed numbers, so the number is drawn in the middle.
+/// The circular-arrow-with-a-number glyph on the two skip buttons.
+///
+/// SF Symbols ships `goforward.30` and friends for the usual intervals, which
+/// is exactly the mark in the design. For an interval it has no symbol for, the
+/// number is drawn into a plain circular arrow instead.
 struct SkipGlyph: View {
     let seconds: Int
     let forward: Bool
     var size: CGFloat = 40
 
+    private var symbolName: String {
+        "\(forward ? "goforward" : "gobackward").\(seconds)"
+    }
+
     var body: some View {
-        ZStack {
-            Image(systemName: forward ? "arrow.clockwise" : "arrow.counterclockwise")
-                .font(.system(size: size, weight: .light))
-            Text("\(seconds)")
-                .font(.system(size: size * 0.34, weight: .semibold))
-                .offset(y: size * 0.04)
+        Group {
+            if UIImage(systemName: symbolName) != nil {
+                Image(systemName: symbolName)
+                    .font(.system(size: size, weight: .regular))
+            } else {
+                ZStack {
+                    Image(systemName: forward ? "arrow.clockwise" : "arrow.counterclockwise")
+                        .font(.system(size: size, weight: .light))
+                    Text("\(seconds)")
+                        .font(.system(size: size * 0.34, weight: .semibold))
+                        .offset(y: size * 0.04)
+                }
+            }
         }
-        .frame(width: size * 1.1, height: size * 1.1)
+        .frame(width: size * 1.25, height: size * 1.25)
     }
 }
 

@@ -45,8 +45,17 @@ Test-Archive legen kannst.
 Jeder Build landet als unsigniertes IPA in einem
 [GitHub Release](../../releases). Zwei Wege:
 
-- **SideStore / AltStore:** die Quelle `s.json` aus dem Release hinzufügen –
-  dann meldet der Sideloader neue Builds selbst.
+- **SideStore / AltStore:** die Quelle hinzufügen – dann meldet der Sideloader
+  neue Builds von selbst:
+
+  ```
+  https://toemeler.github.io/audioble/s.json
+  ```
+
+  Auf [toemeler.github.io/audioble](https://toemeler.github.io/audioble/) gibt
+  es dafür einen Ein-Tipp-Button. Die Seite wird vom Workflow mitgebaut und
+  über GitHub Pages veröffentlicht; ohne Pages funktioniert stattdessen
+  `https://raw.githubusercontent.com/Toemeler/audioble/main/s.json`.
 - **Direkt:** `Audioble.ipa` laden und mit SideStore, AltStore oder
   Sideloadly installieren.
 
