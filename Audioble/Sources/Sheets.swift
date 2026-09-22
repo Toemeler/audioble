@@ -32,9 +32,11 @@ struct ChapterListSheet: View {
     }
 
     private var chapterList: some View {
-        ScrollViewReader { proxy in
+        let chapters = player.book?.chapters ?? []
+        return ScrollViewReader { proxy in
             List {
-                ForEach(Array((player.book?.chapters ?? []).enumerated()), id: \.element.id) { index, chapter in
+                ForEach(chapters.indices, id: \.self) { index in
+                    let chapter = chapters[index]
                     Button {
                         player.play(chapterAt: index)
                         dismiss()

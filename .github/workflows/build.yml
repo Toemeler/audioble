@@ -168,6 +168,12 @@ jobs:
           # on any doubt fall back to raw.githubusercontent.com, which needs
           # nothing switched on.
           PAGES_URL=$(gh api "repos/${{ github.repository }}/pages" --jq '.html_url' 2>/dev/null || true)
+          # With Pages off, gh prints its 404 body to stdout and that lands in
+          # PAGES_URL. Anything that is not a URL means "no Pages".
+          case "$PAGES_URL" in
+            http://*|https://*) ;;
+            *) PAGES_URL="" ;;
+          esac
           export PAGES_URL
           echo "Pages: ${PAGES_URL:-not enabled}"
           python3 .github/scripts/make_icon.py icon.png 512
@@ -191,14 +197,14 @@ jobs:
           if [ -n "${PAGES_URL:-}" ]; then
             ADD_SOURCE="**[Zu SideStore hinzufügen](${PAGES_URL%/}/)**"
           else
-            ADD_SOURCE="Diese Quelle in SideStore hinzufügen:\n\n\`$SOURCE_URL\`"
+            ADD_SOURCE="Diese Quelle in SideStore hinzufügen: \`$SOURCE_URL\`"
           fi
 
           {
             printf '## Audioble %s\n\n' "$VERSION"
             printf 'Lokaler Hörbuch-Player: ZIP importieren, hören, Position wird gemerkt.\n\n'
             printf '### Installieren\n\n'
-            printf "$ADD_SOURCE\n\n"
+            printf '%s\n\n' "$ADD_SOURCE"
             printf 'Oder `Audioble.ipa` laden und mit SideStore, AltStore oder Sideloadly installieren.\n\n'
             printf '### Enthalten\n\n'
             printf -- '- Bibliothek mit Suche, Filtern, Raster- und Listenansicht\n'

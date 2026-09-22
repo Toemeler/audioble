@@ -251,19 +251,19 @@ struct LibraryView: View {
 
     /// The "Listen" tab: the same books, grouped by where the listener is in them.
     private var sectionedContent: some View {
-        let groups: [(String, [Book])] = [
-            ("Wird gehört", visibleBooks.filter { $0.isStarted && !$0.isFinished }),
-            ("Nicht begonnen", visibleBooks.filter { !$0.isStarted && !$0.isFinished }),
-            ("Beendet", visibleBooks.filter(\.isFinished)),
-        ].filter { !$0.1.isEmpty }
+        let groups = [
+            BookGroup(title: "Wird gehört", books: visibleBooks.filter { $0.isStarted && !$0.isFinished }),
+            BookGroup(title: "Nicht begonnen", books: visibleBooks.filter { !$0.isStarted && !$0.isFinished }),
+            BookGroup(title: "Beendet", books: visibleBooks.filter(\.isFinished)),
+        ].filter { !$0.books.isEmpty }
 
-        return ForEach(groups, id: \.0) { title, books in
+        return ForEach(groups) { group in
             HStack {
-                Text(title)
+                Text(group.title)
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Theme.secondaryText)
                 Spacer()
-                Text("\(books.count)")
+                Text("\(group.books.count)")
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.tertiaryText)
             }
@@ -271,7 +271,7 @@ struct LibraryView: View {
             .padding(.top, 14)
             .padding(.bottom, 6)
 
-            list(books: books)
+            list(books: group.books)
         }
     }
 
@@ -369,6 +369,12 @@ struct LibraryView: View {
     }
 }
 
+private struct BookGroup: Identifiable {
+    var title: String
+    var books: [Book]
+    var id: String { title }
+}
+
 /// The non-button twin of `FilterChip`, so a Menu can use the same look.
 private struct FilterChipLabel: View {
     let title: String
@@ -392,6 +398,7 @@ private struct FilterChipLabel: View {
 // MARK: - Row
 
 private struct BookRow: View {
+    @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var player: PlayerEngine
 
     let book: Book
@@ -446,13 +453,13 @@ private struct BookRow: View {
             Menu {
                 Button("Abspielen", systemImage: "play.fill", action: onPlay)
                 Button("Von vorn beginnen", systemImage: "gobackward") {
-                    LibraryStore.shared.resetProgress(bookID: book.id)
+                    library.resetProgress(bookID: book.id)
                     if player.book?.id == book.id {
-                        player.open(LibraryStore.shared.book(id: book.id) ?? book, autoPlay: false)
+                        player.open(library.book(id: book.id) ?? book, autoPlay: false)
                     }
                 }
                 Button("Als beendet markieren", systemImage: "checkmark.circle") {
-                    LibraryStore.shared.markFinished(bookID: book.id)
+                    library.markFinished(bookID: book.id)
                 }
                 Button("Titel bearbeiten", systemImage: "pencil", action: onEdit)
                 Divider()

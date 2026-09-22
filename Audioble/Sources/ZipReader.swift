@@ -40,7 +40,7 @@ struct ZipEntry {
 /// Audiobook zips are usually stored, because the MP3s inside are already
 /// compressed; that path is a plain byte copy.
 final class ZipReader {
-    let entries: [ZipEntry]
+    private(set) var entries: [ZipEntry] = []
     private let handle: FileHandle
     private let fileSize: UInt64
 
@@ -50,22 +50,12 @@ final class ZipReader {
     private static let chunkSize = 1 << 20
 
     init(url: URL) throws {
-        guard let handle = try? FileHandle(forReadingFrom: url) else {
-            throw ZipError.corrupt("nicht lesbar")
-        }
-        self.handle = handle
-        let size = (try? handle.seekToEnd()) ?? 0
-        self.fileSize = size
-        guard size >= 22 else {
-            try? handle.close()
-            throw ZipError.notAZip
-        }
-        do {
-            self.entries = try ZipReader.readCentralDirectory(handle: handle, fileSize: size)
-        } catch {
-            try? handle.close()
-            throw error
-        }
+        // Both stored properties are set before anything below can throw, so a
+        // rejected archive still unwinds cleanly through deinit.
+        handle = try FileHandle(forReadingFrom: url)
+        fileSize = (try? handle.seekToEnd()) ?? 0
+        guard fileSize >= 22 else { throw ZipError.notAZip }
+        entries = try ZipReader.readCentralDirectory(handle: handle, fileSize: fileSize)
     }
 
     deinit { try? handle.close() }

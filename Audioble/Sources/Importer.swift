@@ -142,7 +142,7 @@ enum Importer {
             }
         }
 
-        let durations = await self.durations(for: extracted.map(\.url))
+        let durations = await self.durations(for: extracted.map { $0.url })
 
         var chapters: [Chapter] = extracted.enumerated().map { index, item in
             let tag = tags[item.fileName]
@@ -160,8 +160,7 @@ enum Importer {
         let trackNumbers = extracted.map { tags[$0.fileName]?.track }
         let numbers = trackNumbers.compactMap { $0 }
         if numbers.count == chapters.count, Set(numbers).count == numbers.count {
-            let pairs = zip(chapters, numbers).sorted { $0.1 < $1.1 }
-            chapters = pairs.map(\.0)
+            chapters = zip(chapters, numbers).sorted { $0.1 < $1.1 }.map { $0.0 }
         }
 
         let tagged = extracted.compactMap { tags[$0.fileName] }
@@ -180,30 +179,35 @@ enum Importer {
 
     // MARK: - Durations
 
-    /// Ask AVFoundation for each chapter's length, a few files at a time.
+    /// Ask AVFoundation for each chapter's length, four files at a time.
     private static func durations(for urls: [URL]) async -> [Double] {
         await withTaskGroup(of: (Int, Double).self) { group in
             var results = [Double](repeating: 0, count: urls.count)
             var next = 0
-            let maxParallel = min(4, urls.count)
-
-            func submit(_ index: Int) {
+            while next < min(4, urls.count) {
+                let index = next
                 let url = urls[index]
-                group.addTask {
-                    let asset = AVURLAsset(url: url)
-                    guard let duration = try? await asset.load(.duration) else { return (index, 0) }
-                    let seconds = CMTimeGetSeconds(duration)
-                    return (index, seconds.isFinite && seconds > 0 ? seconds : 0)
-                }
+                group.addTask { await Importer.duration(of: url, index: index) }
+                next += 1
             }
-
-            while next < maxParallel { submit(next); next += 1 }
             while let (index, seconds) = await group.next() {
                 results[index] = seconds
-                if next < urls.count { submit(next); next += 1 }
+                if next < urls.count {
+                    let index = next
+                    let url = urls[index]
+                    group.addTask { await Importer.duration(of: url, index: index) }
+                    next += 1
+                }
             }
             return results
         }
+    }
+
+    private static func duration(of url: URL, index: Int) async -> (Int, Double) {
+        let asset = AVURLAsset(url: url)
+        guard let duration = try? await asset.load(.duration) else { return (index, 0) }
+        let seconds = CMTimeGetSeconds(duration)
+        return (index, seconds.isFinite && seconds > 0 ? seconds : 0)
     }
 
     // MARK: - Names
