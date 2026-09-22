@@ -1,19 +1,13 @@
 import SwiftUI
 
-enum LibraryTab: String, CaseIterable {
-    case listening = "Hören"
-    case books = "Hörbücher"
-    case lists = "Listen"
-}
-
 struct LibraryView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var player: PlayerEngine
 
     @Binding var showPlayer: Bool
     @Binding var showImportSheet: Bool
+    @Binding var showSettings: Bool
 
-    @State private var tab: LibraryTab = .books
     @State private var filter: LibraryFilter = .all
     @State private var sort: LibrarySort = .recent
     @State private var isGrid = false
@@ -27,7 +21,6 @@ struct LibraryView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            tabStrip
             Rectangle().fill(Theme.separator).frame(height: 0.5)
 
             if library.books.isEmpty {
@@ -37,9 +30,7 @@ struct LibraryView: View {
                     LazyVStack(spacing: 0, pinnedViews: []) {
                         filterRow
                         countRow
-                        if tab == .lists {
-                            sectionedContent
-                        } else if isGrid {
+                        if isGrid {
                             grid(books: visibleBooks)
                         } else {
                             list(books: visibleBooks)
@@ -73,7 +64,7 @@ struct LibraryView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             if isSearching {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").foregroundStyle(Theme.secondaryText)
@@ -92,36 +83,17 @@ struct LibraryView: View {
                 .font(.system(size: 15))
                 .foregroundStyle(Theme.tabAccent)
             } else {
+                Text("Bibliothek")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(Theme.primaryText)
                 Spacer()
-                Button { withAnimation { isSearching = true } } label: {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(Theme.primaryText)
-                }
+                HeaderButton("magnifyingglass") { withAnimation { isSearching = true } }
+                HeaderButton("plus") { showImportSheet = true }
+                HeaderButton("gearshape") { showSettings = true }
             }
         }
         .padding(.horizontal, 18)
-        .frame(height: 44)
-    }
-
-    private var tabStrip: some View {
-        HStack(spacing: 26) {
-            ForEach(LibraryTab.allCases, id: \.self) { item in
-                VStack(spacing: 8) {
-                    Text(item.rawValue)
-                        .font(.system(size: 22, weight: tab == item ? .bold : .regular))
-                        .foregroundStyle(tab == item ? Theme.primaryText : Theme.secondaryText)
-                    Rectangle()
-                        .fill(tab == item ? Theme.tabAccent : Color.clear)
-                        .frame(height: 3)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { tab = item } }
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 4)
+        .frame(height: 52)
     }
 
     // MARK: - Controls
@@ -249,32 +221,6 @@ struct LibraryView: View {
         .padding(.horizontal, 18)
     }
 
-    /// The "Listen" tab: the same books, grouped by where the listener is in them.
-    private var sectionedContent: some View {
-        let groups = [
-            BookGroup(title: "Wird gehört", books: visibleBooks.filter { $0.isStarted && !$0.isFinished }),
-            BookGroup(title: "Nicht begonnen", books: visibleBooks.filter { !$0.isStarted && !$0.isFinished }),
-            BookGroup(title: "Beendet", books: visibleBooks.filter(\.isFinished)),
-        ].filter { !$0.books.isEmpty }
-
-        return ForEach(groups) { group in
-            HStack {
-                Text(group.title)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Theme.secondaryText)
-                Spacer()
-                Text("\(group.books.count)")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.tertiaryText)
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 14)
-            .padding(.bottom, 6)
-
-            list(books: group.books)
-        }
-    }
-
     private var emptyState: some View {
         VStack(spacing: 14) {
             Spacer()
@@ -309,11 +255,6 @@ struct LibraryView: View {
 
     private var visibleBooks: [Book] {
         var books = library.books
-
-        switch tab {
-        case .listening: books = books.filter { $0.isStarted && !$0.isFinished }
-        case .books, .lists: break
-        }
 
         switch filter {
         case .all: break
@@ -369,10 +310,26 @@ struct LibraryView: View {
     }
 }
 
-private struct BookGroup: Identifiable {
-    var title: String
-    var books: [Book]
-    var id: String { title }
+/// A round icon button in the library header.
+private struct HeaderButton: View {
+    let systemName: String
+    let action: () -> Void
+
+    init(_ systemName: String, action: @escaping () -> Void) {
+        self.systemName = systemName
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 19, weight: .medium))
+                .foregroundStyle(Theme.primaryText)
+                .frame(width: 40, height: 40)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 /// The non-button twin of `FilterChip`, so a Menu can use the same look.

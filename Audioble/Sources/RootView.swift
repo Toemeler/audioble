@@ -2,47 +2,38 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
-enum RootTab: Hashable { case library, importing, settings }
-
 struct RootView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var player: PlayerEngine
 
-    @State private var tab: RootTab = .library
     @State private var showPlayer = false
     @State private var showImportSheet = false
+    @State private var showSettings = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
             Theme.background.ignoresSafeArea()
 
-            LibraryView(showPlayer: $showPlayer, showImportSheet: $showImportSheet)
-                // Leave room for the mini player and the tab bar.
-                .safeAreaInset(edge: .bottom) {
-                    Color.clear.frame(height: player.book == nil ? 52 : 118)
-                }
+            LibraryView(
+                showPlayer: $showPlayer,
+                showImportSheet: $showImportSheet,
+                showSettings: $showSettings
+            )
+            // Only the player sits below the library, so that is all the room
+            // the list has to leave free.
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: player.book == nil ? 0 : 66)
+            }
 
-            VStack(spacing: 0) {
-                if player.book != nil {
-                    MiniPlayer { showPlayer = true }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-                TabBar(selection: $tab) { selected in
-                    switch selected {
-                    case .library: tab = .library
-                    case .importing: showImportSheet = true
-                    case .settings: tab = .settings
-                    }
-                }
+            if player.book != nil {
+                MiniPlayer { showPlayer = true }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.easeInOut(duration: 0.22), value: player.book?.id)
         .fullScreenCover(isPresented: $showPlayer) { PlayerView() }
         .sheet(isPresented: $showImportSheet) { ImportSheet() }
-        .sheet(isPresented: Binding(
-            get: { tab == .settings },
-            set: { if !$0 { tab = .library } }
-        )) { SettingsSheet() }
+        .sheet(isPresented: $showSettings) { SettingsSheet() }
         .overlay {
             if let progress = library.importProgress {
                 ImportOverlay(progress: progress) { library.cancelImport() }
@@ -58,41 +49,6 @@ struct RootView: View {
             message: { Text(library.errorMessage ?? "") }
         )
         .preferredColorScheme(.dark)
-    }
-}
-
-// MARK: - Tab bar
-
-private struct TabBar: View {
-    @Binding var selection: RootTab
-    let onSelect: (RootTab) -> Void
-
-    private let items: [(tab: RootTab, title: String, icon: String)] = [
-        (.library, "Bibliothek", "books.vertical"),
-        (.importing, "Importieren", "plus.rectangle.on.folder"),
-        (.settings, "Einstellungen", "gearshape"),
-    ]
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Rectangle().fill(Theme.separator).frame(height: 0.5)
-            HStack(spacing: 0) {
-                ForEach(items, id: \.tab) { item in
-                    Button { onSelect(item.tab) } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: item.icon).font(.system(size: 19, weight: .regular))
-                            Text(item.title).font(.system(size: 10, weight: .medium))
-                        }
-                        .foregroundStyle(selection == item.tab ? Theme.primaryText : Theme.tertiaryText)
-                        .frame(maxWidth: .infinity)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.top, 9)
-        }
-        .background(Theme.background)
     }
 }
 
