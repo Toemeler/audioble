@@ -22,18 +22,30 @@ final class LibraryStore: ObservableObject {
     private var importTask: Task<Void, Never>?
     private var saveWorkItem: Task<Void, Never>?
 
-    /// Documents, so imported books show up in the Files app and a zip can be
-    /// dropped straight into the app's folder from a Mac or from iCloud Drive.
+    /// Application Support rather than Documents: the listener's own folder in
+    /// the Files app then holds only the archives they put there, not a pile of
+    /// UUID-named chapter folders. Zips are still picked up from Documents.
     private let root: URL = {
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        return documents.appendingPathComponent("Books", isDirectory: true)
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return base.appendingPathComponent("Books", isDirectory: true)
     }()
 
     private var indexURL: URL { root.appendingPathComponent("library.json") }
 
     private init() {
         try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        excludeFromBackup()
         load()
+    }
+
+    /// A library of audiobooks is re-importable bulk, and a few hundred
+    /// megabytes per book would otherwise be pushed into the listener's iCloud
+    /// backup.
+    private func excludeFromBackup() {
+        var url = root
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? url.setResourceValues(values)
     }
 
     // MARK: - Paths

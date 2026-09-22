@@ -258,7 +258,9 @@ private struct ImportSheet: View {
 
                         Text(
                             "Archive lassen sich auch in der Dateien-App unter "
-                            + "„Auf meinem iPhone › Audioble“ ablegen."
+                            + "„Auf meinem iPhone › Audioble“ ablegen; entpackte "
+                            + "Bücher liegen außerhalb dieses Ordners und bleiben "
+                            + "aus dem iCloud-Backup heraus."
                         )
                         .font(.system(size: 13))
                         .foregroundStyle(Theme.tertiaryText)

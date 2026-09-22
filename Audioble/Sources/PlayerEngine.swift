@@ -378,48 +378,49 @@ final class PlayerEngine: ObservableObject {
     private func configureRemoteCommands() {
         let commands = MPRemoteCommandCenter.shared()
 
+        // These handlers must answer synchronously, and MediaPlayer gives no
+        // guarantee about which thread it calls them on - so each one reads
+        // what it needs from the event and hands the work to the main actor,
+        // rather than asserting it is already there.
         commands.playCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.play() }
+            Task { @MainActor in self?.play() }
             return .success
         }
         commands.pauseCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.pause() }
+            Task { @MainActor in self?.pause() }
             return .success
         }
         commands.togglePlayPauseCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.togglePlayPause() }
+            Task { @MainActor in self?.togglePlayPause() }
             return .success
         }
 
         commands.skipForwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
         commands.skipForwardCommand.addTarget { [weak self] event in
-            MainActor.assumeIsolated {
-                let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 30
-                self?.skip(by: interval)
-            }
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 30
+            Task { @MainActor in self?.skip(by: interval) }
             return .success
         }
         commands.skipBackwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
         commands.skipBackwardCommand.addTarget { [weak self] event in
-            MainActor.assumeIsolated {
-                let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 30
-                self?.skip(by: -interval)
-            }
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 30
+            Task { @MainActor in self?.skip(by: -interval) }
             return .success
         }
 
         commands.nextTrackCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.nextChapter() }
+            Task { @MainActor in self?.nextChapter() }
             return .success
         }
         commands.previousTrackCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.previousChapter() }
+            Task { @MainActor in self?.previousChapter() }
             return .success
         }
 
         commands.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
-            MainActor.assumeIsolated { self?.seek(to: event.positionTime) }
+            let position = event.positionTime
+            Task { @MainActor in self?.seek(to: position) }
             return .success
         }
 
@@ -427,7 +428,8 @@ final class PlayerEngine: ObservableObject {
             PlaybackRate.all.map { NSNumber(value: $0) }
         commands.changePlaybackRateCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackRateCommandEvent else { return .commandFailed }
-            MainActor.assumeIsolated { self?.rate = event.playbackRate }
+            let rate = event.playbackRate
+            Task { @MainActor in self?.rate = rate }
             return .success
         }
     }
