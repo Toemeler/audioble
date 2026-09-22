@@ -82,7 +82,8 @@ jobs:
           STAMP=$( {
             git rev-parse HEAD:Audioble
             git rev-parse HEAD:Audioble.xcodeproj
-            git hash-object .github/scripts/build_app.sh .github/scripts/package_ipa.sh
+            git hash-object .github/scripts/build_app.sh .github/scripts/package_ipa.sh \
+              .github/scripts/fetch_cast_sdk.sh
           } | shasum -a 256 | cut -d' ' -f1 )
           echo "stamp=$STAMP" >> "$GITHUB_OUTPUT"
 

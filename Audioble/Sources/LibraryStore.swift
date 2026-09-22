@@ -135,31 +135,6 @@ final class LibraryStore: ObservableObject {
         save()
     }
 
-    @discardableResult
-    func addBookmark(bookID: UUID, chapterIndex: Int, position: Double) -> Bool {
-        guard let index = books.firstIndex(where: { $0.id == bookID }) else { return false }
-        // Two clips a few seconds apart in the same chapter are almost always a
-        // double tap, not two places worth keeping.
-        let isDuplicate = books[index].bookmarks.contains {
-            $0.chapterIndex == chapterIndex && abs($0.position - position) < 5
-        }
-        guard !isDuplicate else { return false }
-        books[index].bookmarks.append(
-            Bookmark(chapterIndex: chapterIndex, position: position)
-        )
-        books[index].bookmarks.sort {
-            ($0.chapterIndex, $0.position) < ($1.chapterIndex, $1.position)
-        }
-        save()
-        return true
-    }
-
-    func removeBookmark(bookID: UUID, bookmarkID: UUID) {
-        guard let index = books.firstIndex(where: { $0.id == bookID }) else { return }
-        books[index].bookmarks.removeAll { $0.id == bookmarkID }
-        save()
-    }
-
     /// Bytes the library occupies, for the settings screen.
     func storageUsed() -> Int64 {
         let keys: [URLResourceKey] = [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey]

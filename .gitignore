@@ -17,3 +17,6 @@ Pods/
 # Audiobook zips dropped into Sample/ are far too big for git.
 Sample/*.zip
 Sample/*.ZIP
+
+# Google Cast SDK - fetched by .github/scripts/fetch_cast_sdk.sh, not committed.
+Vendor/

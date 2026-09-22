@@ -54,6 +54,16 @@
         </dict>
     </array>
 
+    <!-- Google Cast: discovering receivers and handing them chapter URLs both
+         happen on the local network. -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Audioble sucht im lokalen Netzwerk nach Chromecast-Geräten und liefert die Kapitel direkt an sie aus.</string>
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_googlecast._tcp</string>
+        <string>_CC1AD845._sub._googlecast._tcp</string>
+    </array>
+
     <key>MinimumOSVersion</key>
     <string>16.0</string>
     <key>UIRequiredDeviceCapabilities</key>

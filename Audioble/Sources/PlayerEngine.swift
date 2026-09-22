@@ -19,7 +19,11 @@ final class PlayerEngine: ObservableObject {
     @Published var rate: Float = UserDefaults.standard.playbackRate {
         didSet {
             UserDefaults.standard.playbackRate = rate
-            if isPlaying { player.rate = rate }
+            if isCasting {
+                CastManager.shared.setRate(rate)
+            } else if isPlaying {
+                player.rate = rate
+            }
             updateNowPlaying()
         }
     }
@@ -46,6 +50,11 @@ final class PlayerEngine: ObservableObject {
     private var sleepTicker: Timer?
     private var artworkCache: (bookID: UUID, artwork: MPMediaItemArtwork)?
     private var lastPersist = Date.distantPast
+    private var castConnection: AnyCancellable?
+
+    /// While a Cast session is up, the receiver is the player and this object
+    /// only mirrors it.
+    var isCasting: Bool { CastManager.shared.isConnected }
 
     var chapter: Chapter? {
         guard let book, book.chapters.indices.contains(chapterIndex) else { return nil }
@@ -67,6 +76,7 @@ final class PlayerEngine: ObservableObject {
         configureRemoteCommands()
         observePlayer()
         observeSystem()
+        observeCast()
     }
 
     // MARK: - Opening a book
@@ -95,6 +105,20 @@ final class PlayerEngine: ObservableObject {
         duration = chapter.duration
         currentTime = min(max(0, time), max(0, chapter.duration))
 
+        if isCasting {
+            CastManager.shared.load(
+                book: book,
+                chapters: book.chapters.map { library.url(for: $0, in: book) },
+                cover: library.coverURL(for: book),
+                chapterIndex: index,
+                startAt: currentTime,
+                play: shouldPlay
+            )
+            isPlaying = shouldPlay
+            updateNowPlaying()
+            return
+        }
+
         let item = AVPlayerItem(url: library.url(for: chapter, in: book))
         player.replaceCurrentItem(with: item)
         if currentTime > 0 {
@@ -108,14 +132,18 @@ final class PlayerEngine: ObservableObject {
 
     func play() {
         guard book != nil else { return }
-        activateSession()
-        player.playImmediately(atRate: rate)
+        if isCasting {
+            CastManager.shared.play()
+        } else {
+            activateSession()
+            player.playImmediately(atRate: rate)
+        }
         isPlaying = true
         updateNowPlaying()
     }
 
     func pause() {
-        player.pause()
+        if isCasting { CastManager.shared.pause() } else { player.pause() }
         isPlaying = false
         persistPosition(immediate: true)
         updateNowPlaying()
@@ -145,8 +173,12 @@ final class PlayerEngine: ObservableObject {
         guard book != nil else { return }
         let target = min(max(0, time), max(0, duration))
         currentTime = target
-        player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
-                    toleranceBefore: .zero, toleranceAfter: .zero)
+        if isCasting {
+            CastManager.shared.seek(to: target)
+        } else {
+            player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
+                        toleranceBefore: .zero, toleranceAfter: .zero)
+        }
         persistPosition(immediate: true)
         updateNowPlaying()
     }
@@ -238,7 +270,7 @@ final class PlayerEngine: ObservableObject {
             // The observer is documented to call back on the queue it was given;
             // MainActor.assumeIsolated keeps that promise explicit.
             MainActor.assumeIsolated {
-                guard let self, !self.isScrubbing else { return }
+                guard let self, !self.isScrubbing, !self.isCasting else { return }
                 let seconds = CMTimeGetSeconds(time)
                 guard seconds.isFinite else { return }
                 self.currentTime = seconds
@@ -309,6 +341,55 @@ final class PlayerEngine: ObservableObject {
         // time matches the library row's.
         self.book?.chapterIndex = chapterIndex
         self.book?.position = currentTime
+    }
+
+    // MARK: - Casting
+
+    private func observeCast() {
+        let cast = CastManager.shared
+        cast.onRemoteState = { [weak self] position, playing in
+            guard let self, self.isCasting else { return }
+            if !self.isScrubbing { self.currentTime = position }
+            self.isPlaying = playing
+            if Date().timeIntervalSince(self.lastPersist) > 5 {
+                self.persistPosition(immediate: false)
+            }
+            self.updateNowPlaying()
+        }
+        cast.onRemoteEnded = { [weak self] in self?.chapterDidEnd() }
+
+        // dropFirst: the current value arrives on subscribe, and that is not a
+        // handoff - it is just the state the app started in.
+        castConnection = cast.$isConnected
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] connected in
+                guard let self else { return }
+                connected ? self.handoffToCast() : self.handoffToLocal()
+            }
+    }
+
+    /// Picking a Cast device mid-chapter continues where the phone was.
+    private func handoffToCast() {
+        guard let book else { return }
+        let wasPlaying = isPlaying
+        player.pause()
+        CastManager.shared.load(
+            book: book,
+            chapters: book.chapters.map { library.url(for: $0, in: book) },
+            cover: library.coverURL(for: book),
+            chapterIndex: chapterIndex,
+            startAt: currentTime,
+            play: wasPlaying
+        )
+        isPlaying = wasPlaying
+        updateNowPlaying()
+    }
+
+    /// Disconnecting brings playback back to the phone at the receiver's position.
+    private func handoffToLocal() {
+        guard book != nil else { return }
+        load(chapterIndex: chapterIndex, startAt: currentTime, play: isPlaying)
     }
 
     // MARK: - Audio session, interruptions, lifecycle

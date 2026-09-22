@@ -12,6 +12,9 @@ set -euo pipefail
 CONFIGURATION=${1:-Release}
 SDK=${2:-iphoneos}
 
+# The Cast SDK is not committed; make sure it is there before linking.
+"$(dirname "$0")/fetch_cast_sdk.sh"
+
 xcodebuild \
   -project Audioble.xcodeproj \
   -target Audioble \

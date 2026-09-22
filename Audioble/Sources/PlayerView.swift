@@ -1,16 +1,16 @@
 import AVKit
+import GoogleCast
 import SwiftUI
 
 struct PlayerView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var player: PlayerEngine
+    @ObservedObject private var cast = CastManager.shared
     @Environment(\.dismiss) private var dismiss
 
     @State private var showChapters = false
     @State private var showSpeed = false
     @State private var showSleepTimer = false
-    @State private var showCarMode = false
-    @State private var clipConfirmation = false
 
     var body: some View {
         ZStack {
@@ -24,8 +24,9 @@ struct PlayerView: View {
         .sheet(isPresented: $showChapters) { ChapterListSheet() }
         .sheet(isPresented: $showSpeed) { SpeedSheet() }
         .sheet(isPresented: $showSleepTimer) { SleepTimerSheet() }
-        .fullScreenCover(isPresented: $showCarMode) { CarModeView() }
         .statusBarHidden(false)
+        // The Cast context has to exist before GCKUICastButton is created.
+        .onAppear { CastManager.shared.startIfNeeded() }
     }
 
     /// Teal at the top fading into the app's near-black, tinted by the cover -
@@ -69,6 +70,15 @@ struct PlayerView: View {
                     .font(.system(size: 14))
                     .foregroundStyle(Theme.secondaryText)
                     .lineLimit(1)
+
+                if cast.isConnected, let device = cast.deviceName {
+                    HStack(spacing: 5) {
+                        Image(systemName: "tv.badge.wifi").font(.system(size: 11))
+                        Text("Auf \(device)").font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.accent)
+                    .padding(.top, 3)
+                }
             }
             .padding(.horizontal, 30)
 
@@ -98,6 +108,9 @@ struct PlayerView: View {
         HStack {
             CircleButton(systemName: "chevron.down") { dismiss() }
             Spacer()
+            CastButton()
+                .frame(width: 38, height: 38)
+                .background(Circle().fill(Color.black.opacity(0.28)))
             AirPlayButton()
                 .frame(width: 38, height: 38)
                 .background(Circle().fill(Color.black.opacity(0.28)))
@@ -227,23 +240,14 @@ struct PlayerView: View {
                 label: .text(PlaybackRate.label(player.rate))
             ) { showSpeed = true }
 
-            BottomAction(title: "Auto-Modus", label: .icon("car")) {
-                showCarMode = true
-            }
-
             BottomAction(
                 title: "Timer",
                 label: .icon("timer"),
                 isActive: player.sleepTimerEndsAt != nil || player.sleepAtChapterEnd,
                 badge: sleepBadge
             ) { showSleepTimer = true }
-
-            BottomAction(
-                title: clipConfirmation ? "Gesichert" : "+ Clip",
-                label: .icon("bookmark")
-            ) { addClip() }
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 40)
     }
 
     private var sleepBadge: String? {
@@ -252,19 +256,6 @@ struct PlayerView: View {
         return "\(Int(remaining / 60) + 1)m"
     }
 
-    private func addClip() {
-        guard let book = player.book else { return }
-        library.addBookmark(
-            bookID: book.id,
-            chapterIndex: player.chapterIndex,
-            position: player.currentTime
-        )
-        withAnimation { clipConfirmation = true }
-        Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            withAnimation { clipConfirmation = false }
-        }
-    }
 }
 
 // MARK: - Small pieces
@@ -346,6 +337,18 @@ private struct BottomAction: View {
         }
         .buttonStyle(.plain)
     }
+}
+
+/// The Cast SDK's own button: it hides itself when no receiver is on the
+/// network and presents the standard device picker when tapped.
+private struct CastButton: UIViewRepresentable {
+    func makeUIView(context: Context) -> GCKUICastButton {
+        let button = GCKUICastButton()
+        button.tintColor = .white
+        return button
+    }
+
+    func updateUIView(_ uiView: GCKUICastButton, context: Context) {}
 }
 
 /// The system AirPlay picker, so playback can be sent to a HomePod or a car.

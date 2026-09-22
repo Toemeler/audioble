@@ -9,14 +9,6 @@ struct Chapter: Codable, Identifiable, Hashable {
     var duration: Double
 }
 
-/// A saved position the listener can jump back to - the "+ Clip" button.
-struct Bookmark: Codable, Identifiable, Hashable {
-    var id: UUID = UUID()
-    var chapterIndex: Int
-    var position: Double
-    var createdAt: Date = Date()
-}
-
 struct Book: Codable, Identifiable, Hashable {
     var id: UUID = UUID()
     var title: String
@@ -31,14 +23,14 @@ struct Book: Codable, Identifiable, Hashable {
     var position: Double = 0
     var lastPlayedAt: Date?
     var isFinished: Bool = false
-    var bookmarks: [Bookmark] = []
 
-    // Decoded by hand so a library written by an older build - one without
-    // bookmarks, say - still opens instead of being thrown away. The synthesized
-    // decoder ignores default values and would fail on a missing key.
+    // Decoded by hand so a library written by another build - one with a field
+    // this one no longer has, or missing one it gained - still opens instead of
+    // being thrown away. The synthesized decoder ignores default values and
+    // would fail on a missing key.
     enum CodingKeys: String, CodingKey {
         case id, title, author, chapters, coverFileName, addedAt
-        case chapterIndex, position, lastPlayedAt, isFinished, bookmarks
+        case chapterIndex, position, lastPlayedAt, isFinished
     }
 
     init(
@@ -69,7 +61,6 @@ struct Book: Codable, Identifiable, Hashable {
         position = try container.decodeIfPresent(Double.self, forKey: .position) ?? 0
         lastPlayedAt = try container.decodeIfPresent(Date.self, forKey: .lastPlayedAt)
         isFinished = try container.decodeIfPresent(Bool.self, forKey: .isFinished) ?? false
-        bookmarks = try container.decodeIfPresent([Bookmark].self, forKey: .bookmarks) ?? []
     }
 
     var totalDuration: Double { chapters.reduce(0) { $0 + $1.duration } }

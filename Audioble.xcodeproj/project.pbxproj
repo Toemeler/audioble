@@ -14,13 +14,17 @@
 		AA000005 /* ID3.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000005 /* ID3.swift */; };
 		AA000006 /* Importer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000006 /* Importer.swift */; };
 		AA000007 /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000007 /* LibraryStore.swift */; };
-		AA000008 /* PlayerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000008 /* PlayerEngine.swift */; };
-		AA000009 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000009 /* Components.swift */; };
-		AA000010 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000010 /* RootView.swift */; };
-		AA000011 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000011 /* LibraryView.swift */; };
-		AA000012 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000012 /* PlayerView.swift */; };
-		AA000013 /* Sheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000013 /* Sheets.swift */; };
+		AA000008 /* MediaServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000008 /* MediaServer.swift */; };
+		AA000009 /* CastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000009 /* CastManager.swift */; };
+		AA000010 /* PlayerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000010 /* PlayerEngine.swift */; };
+		AA000011 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000011 /* Components.swift */; };
+		AA000012 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000012 /* RootView.swift */; };
+		AA000013 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000013 /* LibraryView.swift */; };
+		AA000014 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000014 /* PlayerView.swift */; };
+		AA000015 /* Sheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000015 /* Sheets.swift */; };
 		AA000100 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB000100 /* Assets.xcassets */; };
+		AA000200 /* GoogleCast.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AB000200 /* GoogleCast.xcframework */; };
+		AA000201 /* GoogleCast.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AB000200 /* GoogleCast.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,22 +35,40 @@
 		AB000005 /* ID3.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ID3.swift; sourceTree = "<group>"; };
 		AB000006 /* Importer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Importer.swift; sourceTree = "<group>"; };
 		AB000007 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
-		AB000008 /* PlayerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerEngine.swift; sourceTree = "<group>"; };
-		AB000009 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
-		AB000010 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
-		AB000011 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
-		AB000012 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
-		AB000013 /* Sheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sheets.swift; sourceTree = "<group>"; };
+		AB000008 /* MediaServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaServer.swift; sourceTree = "<group>"; };
+		AB000009 /* CastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CastManager.swift; sourceTree = "<group>"; };
+		AB000010 /* PlayerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerEngine.swift; sourceTree = "<group>"; };
+		AB000011 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		AB000012 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		AB000013 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		AB000014 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
+		AB000015 /* Sheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sheets.swift; sourceTree = "<group>"; };
 		AB000099 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AB000100 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AB000200 /* GoogleCast.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = GoogleCast.xcframework; path = Vendor/GoogleCast.xcframework; sourceTree = SOURCE_ROOT; };
 		AC000001 /* Audioble.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Audioble.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AJ000001 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				AA000201 /* GoogleCast.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AD000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA000200 /* GoogleCast.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,6 +88,7 @@
 			children = (
 				AE000002 /* Sources */,
 				AE000003 /* Resources */,
+				AE000004 /* Frameworks */,
 				AC000002 /* Products */,
 			);
 			path = Audioble;
@@ -81,12 +104,14 @@
 				AB000005 /* ID3.swift */,
 				AB000006 /* Importer.swift */,
 				AB000007 /* LibraryStore.swift */,
-				AB000008 /* PlayerEngine.swift */,
-				AB000009 /* Components.swift */,
-				AB000010 /* RootView.swift */,
-				AB000011 /* LibraryView.swift */,
-				AB000012 /* PlayerView.swift */,
-				AB000013 /* Sheets.swift */,
+				AB000008 /* MediaServer.swift */,
+				AB000009 /* CastManager.swift */,
+				AB000010 /* PlayerEngine.swift */,
+				AB000011 /* Components.swift */,
+				AB000012 /* RootView.swift */,
+				AB000013 /* LibraryView.swift */,
+				AB000014 /* PlayerView.swift */,
+				AB000015 /* Sheets.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -100,6 +125,14 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		AE000004 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				AB000200 /* GoogleCast.xcframework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -110,6 +143,7 @@
 				AG000001 /* Sources */,
 				AD000001 /* Frameworks */,
 				AH000001 /* Resources */,
+				AJ000001 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -177,12 +211,14 @@
 				AA000005 /* ID3.swift in Sources */,
 				AA000006 /* Importer.swift in Sources */,
 				AA000007 /* LibraryStore.swift in Sources */,
-				AA000008 /* PlayerEngine.swift in Sources */,
-				AA000009 /* Components.swift in Sources */,
-				AA000010 /* RootView.swift in Sources */,
-				AA000011 /* LibraryView.swift in Sources */,
-				AA000012 /* PlayerView.swift in Sources */,
-				AA000013 /* Sheets.swift in Sources */,
+				AA000008 /* MediaServer.swift in Sources */,
+				AA000009 /* CastManager.swift in Sources */,
+				AA000010 /* PlayerEngine.swift in Sources */,
+				AA000011 /* Components.swift in Sources */,
+				AA000012 /* RootView.swift in Sources */,
+				AA000013 /* LibraryView.swift in Sources */,
+				AA000014 /* PlayerView.swift in Sources */,
+				AA000015 /* Sheets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -272,6 +308,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Vendor",
+				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Audioble/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -280,6 +320,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = de.toemeler.Audioble;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -297,6 +341,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Vendor",
+				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Audioble/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -305,6 +353,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = de.toemeler.Audioble;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
