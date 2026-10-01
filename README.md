@@ -27,7 +27,10 @@ einem Chromecast.
 **Ausgabe**
 - **AirPlay** über den Router im Player – HomePod, Apple TV, Auto
 - **Google Cast** auf jeden Chromecast im WLAN, mit Cover und Kapiteltitel auf
-  dem Empfänger; Verbinden und Trennen übernehmen die Hörposition
+  dem Empfänger; Verbinden übernimmt die Hörposition, Trennen holt das Buch
+  an derselben Stelle pausiert aufs Telefon zurück (und stoppt den Fernseher).
+  Steuerung über App, Sperrbildschirm, Lautstärketasten oder die
+  TV-Fernbedienung; Kapitel laufen auch im Hintergrund weiter
 
 ## Format der Archive
 

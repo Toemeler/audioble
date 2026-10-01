@@ -106,16 +106,7 @@ final class PlayerEngine: ObservableObject {
         currentTime = min(max(0, time), max(0, chapter.duration))
 
         if isCasting {
-            CastManager.shared.load(
-                book: book,
-                chapters: book.chapters.map { library.url(for: $0, in: book) },
-                cover: library.coverURL(for: book),
-                chapterIndex: index,
-                startAt: currentTime,
-                play: shouldPlay
-            )
-            isPlaying = shouldPlay
-            updateNowPlaying()
+            castLoad(play: shouldPlay)
             return
         }
 
@@ -131,9 +122,16 @@ final class PlayerEngine: ObservableObject {
     // MARK: - Transport
 
     func play() {
-        guard book != nil else { return }
+        guard let book else { return }
         if isCasting {
-            CastManager.shared.play()
+            // A receiver that finished the chapter, or was stopped from the
+            // TV, has nothing left to resume - hand it the chapter again.
+            if CastManager.shared.canResume(bookID: book.id, chapterIndex: chapterIndex) {
+                CastManager.shared.play()
+            } else {
+                castLoad(play: true)
+                return
+            }
         } else {
             activateSession()
             player.playImmediately(atRate: rate)
@@ -345,51 +343,81 @@ final class PlayerEngine: ObservableObject {
 
     // MARK: - Casting
 
-    private func observeCast() {
-        let cast = CastManager.shared
-        cast.onRemoteState = { [weak self] position, playing in
-            guard let self, self.isCasting else { return }
-            if !self.isScrubbing { self.currentTime = position }
-            self.isPlaying = playing
-            if Date().timeIntervalSince(self.lastPersist) > 5 {
-                self.persistPosition(immediate: false)
-            }
-            self.updateNowPlaying()
-        }
-        cast.onRemoteEnded = { [weak self] in self?.chapterDidEnd() }
-
-        // dropFirst: the current value arrives on subscribe, and that is not a
-        // handoff - it is just the state the app started in.
-        castConnection = cast.$isConnected
-            .dropFirst()
-            .removeDuplicates()
-            .sink { [weak self] connected in
-                guard let self else { return }
-                connected ? self.handoffToCast() : self.handoffToLocal()
-            }
-    }
-
-    /// Picking a Cast device mid-chapter continues where the phone was.
-    private func handoffToCast() {
+    /// Hand the receiver the current chapter at the current position.
+    private func castLoad(play shouldPlay: Bool) {
         guard let book else { return }
-        let wasPlaying = isPlaying
-        player.pause()
         CastManager.shared.load(
             book: book,
             chapters: book.chapters.map { library.url(for: $0, in: book) },
             cover: library.coverURL(for: book),
             chapterIndex: chapterIndex,
             startAt: currentTime,
-            play: wasPlaying
+            play: shouldPlay,
+            rate: rate
         )
-        isPlaying = wasPlaying
+        isPlaying = shouldPlay
         updateNowPlaying()
     }
 
-    /// Disconnecting brings playback back to the phone at the receiver's position.
+    private func observeCast() {
+        let cast = CastManager.shared
+        cast.onRemoteState = { [weak self] position, playing in
+            guard let self, self.isCasting else { return }
+            let target = max(0, position)
+            // The lock screen extrapolates the position from the rate on its
+            // own; it only needs telling when the receiver does something it
+            // could not predict.
+            let jumped = abs(target - self.currentTime) > 2
+            let toggled = playing != self.isPlaying
+            if !self.isScrubbing, abs(target - self.currentTime) > 0.01 { self.currentTime = target }
+            if toggled { self.isPlaying = playing }
+            if toggled { self.persistPosition(immediate: true) }
+            else if Date().timeIntervalSince(self.lastPersist) > 5 {
+                self.persistPosition(immediate: false)
+            }
+            if jumped || toggled { self.updateNowPlaying() }
+        }
+        cast.onRemoteEnded = { [weak self] in self?.chapterDidEnd() }
+
+        // dropFirst: the current value arrives on subscribe, and that is not a
+        // handoff - it is just the state the app started in.
+        //
+        // receive(on:): @Published emits from willSet, while isConnected still
+        // holds the old value - a handoff run synchronously would see the
+        // phone as not casting yet (and the receiver as still connected on
+        // the way back), and go to the wrong player.
+        castConnection = cast.$isConnected
+            .dropFirst()
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] connected in
+                // A connect and disconnect in quick succession: only the
+                // state that actually holds now counts.
+                guard let self, connected == self.isCasting else { return }
+                connected ? self.handoffToCast() : self.handoffToLocal()
+            }
+    }
+
+    /// Picking a Cast device mid-chapter continues where the phone was.
+    private func handoffToCast() {
+        guard book != nil else { return }
+        let wasPlaying = isPlaying
+        player.pause()
+        persistPosition(immediate: true)
+        castLoad(play: wasPlaying)
+    }
+
+    /// Disconnecting brings the book back to the phone at the receiver's
+    /// position - paused, so a dropped Wi-Fi in the night or "Stop casting"
+    /// never starts the phone talking out loud.
     private func handoffToLocal() {
         guard book != nil else { return }
-        load(chapterIndex: chapterIndex, startAt: currentTime, play: isPlaying)
+        let position = CastManager.shared.remotePosition
+        if position > 0 { currentTime = position }
+        persistPosition(immediate: true)
+        load(chapterIndex: chapterIndex, startAt: currentTime, play: false)
+        isPlaying = false
+        updateNowPlaying()
     }
 
     // MARK: - Audio session, interruptions, lifecycle
@@ -417,6 +445,9 @@ final class PlayerEngine: ObservableObject {
                       let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
                       let type = AVAudioSession.InterruptionType(rawValue: raw)
                 else { return }
+                // While casting the TV is playing, not the phone: a call or
+                // another app's sound on the phone is no reason to stop it.
+                guard !self.isCasting else { return }
                 switch type {
                 case .began:
                     if self.isPlaying { self.pause() }
@@ -439,8 +470,9 @@ final class PlayerEngine: ObservableObject {
                       let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
                       AVAudioSession.RouteChangeReason(rawValue: raw) == .oldDeviceUnavailable
                 else { return }
-                // Headphones pulled out: never start playing out loud.
-                if self.isPlaying { self.pause() }
+                // Headphones pulled out: never start playing out loud. Not
+                // relevant while the sound comes out of the TV.
+                if self.isPlaying, !self.isCasting { self.pause() }
             }
         }
 

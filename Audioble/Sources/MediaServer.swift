@@ -26,6 +26,8 @@ final class MediaServer {
     private var connections: [ObjectIdentifier: NWConnection] = [:]
     private var route: Route?
     private var boundPort: UInt16?
+    /// Callers waiting for the listener to have a port.
+    private var readyWaiters: [(URL?) -> Void] = []
 
     private static let chunkSize = 256 * 1024
 
@@ -34,34 +36,77 @@ final class MediaServer {
     // MARK: - Lifecycle
 
     /// Start listening on an ephemeral port. Safe to call repeatedly.
-    @discardableResult
-    func start() -> Bool {
+    ///
+    /// The port is only known once the listener is ready, a moment after this
+    /// returns. `whenReady` is called (on the server's queue) with the base URL
+    /// a Chromecast can reach as soon as there is one - or with nil when the
+    /// listener fails, there is no Wi-Fi address, or it takes too long.
+    func start(whenReady: ((URL?) -> Void)? = nil) {
         lock.lock()
+        if let whenReady { readyWaiters.append(whenReady) }
         let running = listener != nil
+        let ready = boundPort != nil
         lock.unlock()
-        if running { return true }
+
+        if running {
+            if ready { queue.async { self.flushWaiters() } }
+            return
+        }
 
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
         // The Chromecast is on the LAN, so the socket must be too.
         parameters.requiredInterfaceType = .wifi
 
-        guard let listener = try? NWListener(using: parameters) else { return false }
+        guard let listener = try? NWListener(using: parameters) else {
+            queue.async { self.flushWaiters() }
+            return
+        }
         listener.newConnectionHandler = { [weak self] connection in
             self?.accept(connection)
         }
-        listener.stateUpdateHandler = { [weak self] state in
-            guard case .ready = state, let port = listener.port else { return }
-            self?.lock.lock()
-            self?.boundPort = port.rawValue
-            self?.lock.unlock()
+        listener.stateUpdateHandler = { [weak self, weak listener] state in
+            guard let self, let listener else { return }
+            switch state {
+            case .ready:
+                self.lock.lock()
+                self.boundPort = listener.port?.rawValue
+                self.lock.unlock()
+                self.flushWaiters()
+            case .failed:
+                // Wi-Fi went away or the port was taken back. Forget this
+                // listener so the next start() builds a fresh one.
+                listener.cancel()
+                self.lock.lock()
+                if self.listener === listener {
+                    self.listener = nil
+                    self.boundPort = nil
+                }
+                self.lock.unlock()
+                self.flushWaiters()
+            default:
+                break
+            }
         }
-        listener.start(queue: queue)
 
         lock.lock()
         self.listener = listener
         lock.unlock()
-        return true
+        listener.start(queue: queue)
+
+        // Never leave a caller hanging on a listener that neither becomes
+        // ready nor fails.
+        queue.asyncAfter(deadline: .now() + 5) { [weak self] in self?.flushWaiters() }
+    }
+
+    private func flushWaiters() {
+        lock.lock()
+        let waiters = readyWaiters
+        readyWaiters.removeAll()
+        lock.unlock()
+        guard !waiters.isEmpty else { return }
+        let base = baseURL()
+        for waiter in waiters { waiter(base) }
     }
 
     func stop() {
@@ -76,6 +121,7 @@ final class MediaServer {
 
         listener?.cancel()
         for connection in open.values { connection.cancel() }
+        queue.async { self.flushWaiters() }
     }
 
     /// Publish a book for the duration of a cast session and return the token
@@ -170,8 +216,13 @@ final class MediaServer {
         guard parts.count >= 2 else { return close(connection) }
 
         let method = String(parts[0]).uppercased()
+        if method == "OPTIONS" {
+            // A CORS preflight, which a receiver fetching media with script
+            // rather than a plain <audio> element sends first.
+            return send(status: 204, headers: Self.corsHeaders, body: nil, on: connection)
+        }
         guard method == "GET" || method == "HEAD" else {
-            return send(status: 405, headers: ["Allow": "GET, HEAD"], body: nil, on: connection)
+            return send(status: 405, headers: ["Allow": "GET, HEAD, OPTIONS"], body: nil, on: connection)
         }
 
         let path = String(parts[1])
@@ -244,7 +295,7 @@ final class MediaServer {
             "Content-Length": "\(length)",
             "Accept-Ranges": "bytes",
             "Connection": "close",
-        ]
+        ].merging(Self.corsHeaders) { current, _ in current }
         if status == 206 {
             headers["Content-Range"] = "bytes \(start)-\(end)/\(total)"
         }
@@ -298,6 +349,15 @@ final class MediaServer {
         })
     }
 
+    /// The receiver is a web page on another origin; these let it read the
+    /// responses whichever way it fetches them.
+    private static let corsHeaders: [String: String] = [
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "Range, Content-Type",
+        "Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges",
+    ]
+
     private static func headerData(status: Int, headers: [String: String]) -> [UInt8] {
         var text = "HTTP/1.1 \(status) \(reason(status))\r\n"
         for (key, value) in headers.sorted(by: { $0.key < $1.key }) {
@@ -310,6 +370,7 @@ final class MediaServer {
     private static func reason(_ status: Int) -> String {
         switch status {
         case 200: return "OK"
+        case 204: return "No Content"
         case 206: return "Partial Content"
         case 404: return "Not Found"
         case 405: return "Method Not Allowed"
@@ -364,6 +425,7 @@ final class MediaServer {
         case "aif", "aiff": return "audio/aiff"
         case "caf": return "audio/x-caf"
         case "flac": return "audio/flac"
+        case "ogg", "oga", "opus": return "audio/ogg"
         case "png": return "image/png"
         case "jpg", "jpeg": return "image/jpeg"
         default: return "application/octet-stream"

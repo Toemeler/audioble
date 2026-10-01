@@ -25,8 +25,6 @@ struct PlayerView: View {
         .sheet(isPresented: $showSpeed) { SpeedSheet() }
         .sheet(isPresented: $showSleepTimer) { SleepTimerSheet() }
         .statusBarHidden(false)
-        // The Cast context has to exist before GCKUICastButton is created.
-        .onAppear { CastManager.shared.startIfNeeded() }
     }
 
     /// Teal at the top fading into the app's near-black, tinted by the cover -
@@ -73,11 +71,24 @@ struct PlayerView: View {
 
                 if cast.isConnected, let device = cast.deviceName {
                     HStack(spacing: 5) {
-                        Image(systemName: "tv.badge.wifi").font(.system(size: 11))
-                        Text("Auf \(device)").font(.system(size: 12, weight: .semibold))
+                        if cast.isLoading {
+                            ProgressView().controlSize(.mini).tint(Theme.accent)
+                        } else {
+                            Image(systemName: "tv.badge.wifi").font(.system(size: 11))
+                        }
+                        Text(cast.isLoading ? "Lädt auf \(device) …" : "Auf \(device)")
+                            .font(.system(size: 12, weight: .semibold))
                     }
                     .foregroundStyle(Theme.accent)
                     .padding(.top, 3)
+                    .animation(.easeInOut(duration: 0.2), value: cast.isLoading)
+                }
+                if cast.isConnected, let error = cast.errorMessage {
+                    Text(error)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.orange)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 2)
                 }
             }
             .padding(.horizontal, 30)

@@ -2,6 +2,12 @@ import SwiftUI
 
 @main
 struct AudiobleApp: App {
+    init() {
+        // Before any view exists: the Cast button needs the context, and a
+        // cast session still running from the last launch is resumed by it.
+        CastManager.shared.startIfNeeded()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
